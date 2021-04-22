@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Protractor</string>
+    <string name="plumb">Plumb</string>
+    <string name="camera">Camera</string>
+    <string name="touch">Touch</string>
+    <string name="reset">Reset</string>
+    <string name="calibration">Calibration</string>
+    <string name="holding">Holding...</string>
+</resources>
