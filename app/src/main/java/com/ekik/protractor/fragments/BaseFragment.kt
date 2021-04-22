@@ -62,10 +62,6 @@ abstract class BaseFragment: Fragment() {
 
     }
 
-    protected fun registerPermissionCallback() {
-
-    }
-
     protected fun checkPermission(requestedPermission: String): Boolean {
         return PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(
             requireContext(),
@@ -73,11 +69,7 @@ abstract class BaseFragment: Fragment() {
         )
     }
 
-    protected open fun permissionGranted() {
+    protected open fun permissionGranted() {}
 
-    }
-
-    protected open fun permissionDenied() {
-
-    }
+    protected open fun permissionDenied() {}
 }

@@ -6,12 +6,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.Transformations
+import com.ekik.protractor.DoNothing
 import com.ekik.protractor.services.SensorListener
 import com.ekik.protractor.services.SensorService
 import com.ekik.protractor.usecases.CalibrationUseCase
 import com.ekik.protractor.usecases.RealAngleUseCase
 import com.ekik.protractor.usecases.processors.AngleProcessor
-import java.lang.RuntimeException
 
 class HomeViewModelImpl(
     private val touchAngleProcessor: AngleProcessor,
@@ -25,71 +25,69 @@ class HomeViewModelImpl(
 
     private val _touchRealAngle = MutableLiveData(0.0)
 
-    private val correctedTouchRealAngle = Transformations.map(_touchRealAngle) { angle ->
+    private val touchRealAngleObs = Observer<Double> { angle ->
         when (_mode.value) {
-            is Mode.Camera -> cameraTouchAngleProcessor.correctRealAngle(angle)
-            //TODO: workaround, need to find better way
-            is Mode.Plumb -> plumbAngleProcessor.correctRealAngle(_plumbRealAngle.value ?: 0.0)
-            is Mode.Touch -> touchAngleProcessor.correctRealAngle(angle)
-            null -> throw RuntimeException("Mode cannot be null")
-        }.toFloat()
+            is Mode.Camera -> {
+                val realAngle = cameraTouchAngleProcessor.correctRealAngle(angle).toFloat()
+                _touchCorrectedRealAngle.value = realAngle
+                val displayAngle = cameraTouchAngleProcessor.correctDisplayAngle(angle)
+                _touchDisplayAngle.value = displayAngle
+            }
+            is Mode.Touch -> {
+                val realAngle = touchAngleProcessor.correctRealAngle(angle).toFloat()
+                _touchCorrectedRealAngle.value = realAngle
+                val displayAngle = touchAngleProcessor.correctDisplayAngle(angle)
+                _touchDisplayAngle.value = displayAngle
+            }
+            else -> {
+                DoNothing
+            }
+        }
     }
 
+    private val _touchCorrectedRealAngle = MutableLiveData<Float>()
     override val touchRealAngle: LiveData<Float>
-        get() = Transformations.distinctUntilChanged(correctedTouchRealAngle)
+        get() = Transformations.distinctUntilChanged(_touchCorrectedRealAngle)
 
+    private val _touchDisplayAngle = MutableLiveData<String>()
     override val touchDisplayAngle: LiveData<String>
-        get() = Transformations.distinctUntilChanged(
-            Transformations.map(_touchRealAngle) { angle ->
-                when (_mode.value) {
-                    is Mode.Camera -> cameraTouchAngleProcessor.correctDisplayAngle(angle)
-                    //TODO: workaround, need to find better way
-                    is Mode.Plumb -> plumbAngleProcessor.correctDisplayAngle(_plumbRealAngle.value ?: 0.0)
-                    is Mode.Touch -> touchAngleProcessor.correctDisplayAngle(angle)
-                    null -> throw RuntimeException("Must not be null")
-                }
-            }
-        )
+        get() = Transformations.distinctUntilChanged(_touchDisplayAngle)
 
     private val _plumbRealAngle = MutableLiveData(0.0)
 
-    private val correctedPlumbRealAngle = Transformations.map(_plumbRealAngle) { angle ->
-        when (_mode.value) {
-            is Mode.Camera -> {
-                val calibratedAngle = angle + calibrationUseCase.calibration
-                cameraPlumbAngleProcessor.correctRealAngle(calibratedAngle)
-            }
-            is Mode.Plumb -> {
-                val calibratedAngle = angle + calibrationUseCase.calibration
-                plumbAngleProcessor.correctRealAngle(calibratedAngle)
-            }
-            //TODO: workaround, need to find better way
-            is Mode.Touch -> touchAngleProcessor.correctRealAngle(_touchRealAngle.value ?: 0.0)
-            null -> throw RuntimeException("Mode cannot be null")
-        }.toFloat()
-    }
-
-    override val plumbRealAngle: LiveData<Float>
-        get() = Transformations.distinctUntilChanged(correctedPlumbRealAngle)
-
-    override val plumbDisplayAngle: LiveData<String>
-        get() = Transformations.distinctUntilChanged(
-            Transformations.map(_plumbRealAngle) { angle ->
-                when (_mode.value) {
-                    is Mode.Camera -> {
-                        val calibratedAngle = angle + calibrationUseCase.calibration
+    private val plumbRealAngleObs = Observer<Double> { angle ->
+        if (_cameraHoldingMode.value == HoldingMode.FREE) {
+            when (_mode.value) {
+                is Mode.Camera -> {
+                    val calibratedAngle = angle + calibrationUseCase.calibration
+                    val realAngle =
+                        cameraPlumbAngleProcessor.correctRealAngle(calibratedAngle).toFloat()
+                    _correctedPlumbAngle.value = realAngle
+                    val displayAngle =
                         cameraPlumbAngleProcessor.correctDisplayAngle(calibratedAngle)
-                    }
-                    is Mode.Plumb -> {
-                        val calibratedAngle = angle + calibrationUseCase.calibration
-                        plumbAngleProcessor.correctDisplayAngle(calibratedAngle)
-                    }
-                    //TODO: workaround, need to find better way
-                    is Mode.Touch -> touchAngleProcessor.correctDisplayAngle(_touchRealAngle.value ?: 0.0)
-                    null -> throw RuntimeException("Must not be null")
+                    _plumbDisplayAngle.value = displayAngle
+                }
+                is Mode.Plumb -> {
+                    val calibratedAngle = angle + calibrationUseCase.calibration
+                    val realAngle = plumbAngleProcessor.correctRealAngle(calibratedAngle).toFloat()
+                    _correctedPlumbAngle.value = realAngle
+                    val displayAngle = plumbAngleProcessor.correctDisplayAngle(calibratedAngle)
+                    _plumbDisplayAngle.value = displayAngle
+                }
+                else -> {
+                    DoNothing
                 }
             }
-        )
+        }
+    }
+
+    private val _correctedPlumbAngle = MutableLiveData<Float>()
+    override val plumbRealAngle: LiveData<Float>
+        get() = Transformations.distinctUntilChanged(_correctedPlumbAngle)
+
+    private val _plumbDisplayAngle = MutableLiveData<String>()
+    override val plumbDisplayAngle: LiveData<String>
+        get() = Transformations.distinctUntilChanged(_plumbDisplayAngle)
 
     private val _mode = MutableLiveData<Mode>(Mode.Touch)
     override val mode: LiveData<Mode>
@@ -104,6 +102,10 @@ class HomeViewModelImpl(
     override val calibrationAction: LiveData<Double>
         get() = _calibrationAction
 
+    private val _darkMode = MutableLiveData(false)
+    override val darkMode: LiveData<Boolean>
+        get() = Transformations.distinctUntilChanged(_darkMode)
+
     private val sensorListener: SensorListener = { x, y, z ->
         val point = PointF(realAngleUseCase.anchorPoint.x + y, realAngleUseCase.anchorPoint.y + x)
         Log.d("point_checker", "$point")
@@ -112,7 +114,7 @@ class HomeViewModelImpl(
     }
 
     private val modeChangeObserver: Observer<Mode> = Observer<Mode> {
-        when(it) {
+        when (it) {
             is Mode.Touch -> {
                 sensorService.removeListener()
             }
@@ -126,7 +128,9 @@ class HomeViewModelImpl(
     }
 
     init {
-        mode.observeForever(modeChangeObserver)
+        _mode.observeForever(modeChangeObserver)
+        _touchRealAngle.observeForever(touchRealAngleObs)
+        _plumbRealAngle.observeForever(plumbRealAngleObs)
     }
 
     override fun setTouchPoint(point: PointF) {
@@ -159,6 +163,8 @@ class HomeViewModelImpl(
 
     override fun onCleared() {
         _mode.removeObserver(modeChangeObserver)
+        _touchRealAngle.removeObserver(touchRealAngleObs)
+        _plumbRealAngle.removeObserver(plumbRealAngleObs)
         super.onCleared()
     }
 
@@ -173,5 +179,13 @@ class HomeViewModelImpl(
             _cameraHoldingMode.value = HoldingMode.FREE
             _plumbRealAngle.value = _plumbRealAngle.value
         }
+    }
+
+    override fun setDarkMode() {
+        _darkMode.value = true
+    }
+
+    override fun setLightMode() {
+        _darkMode.value = false
     }
 }

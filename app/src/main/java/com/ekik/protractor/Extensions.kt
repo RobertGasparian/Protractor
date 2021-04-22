@@ -45,3 +45,5 @@ fun View.disable() {
 
 val View.isVisible get() = visibility == View.VISIBLE
 
+val DoNothing = Unit
+

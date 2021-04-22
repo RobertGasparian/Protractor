@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.PointF
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -19,9 +18,7 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.core.view.doOnLayout
 import com.ekik.protractor.*
-import com.ekik.protractor.services.SensorService
 import com.ekik.protractor.viewmodels.HomeViewModel
-import org.koin.android.ext.android.inject
 import org.koin.android.viewmodel.ext.android.viewModel
 
 
@@ -44,7 +41,6 @@ class HomeFragment : BaseFragment(), View.OnTouchListener {
     private lateinit var cameraBtn: Button
     private lateinit var plumbBtn: Button
     private lateinit var touchBtn: Button
-    private val ss: SensorService by inject()
 
     private lateinit var protractorIV: ImageView
 
@@ -118,14 +114,12 @@ class HomeFragment : BaseFragment(), View.OnTouchListener {
 
     override fun subscribeToViewModel() {
         homeViewModel.touchRealAngle.observe(viewLifecycleOwner) { angle ->
-            Log.d("angle_checker", "angle: $angle")
             touchLine.rotation = -angle.toFloat()
         }
         homeViewModel.plumbRealAngle.observe(viewLifecycleOwner) { angle ->
             plumbLine.rotation = -angle.toFloat()
         }
         homeViewModel.touchDisplayAngle.observe(viewLifecycleOwner) { angle ->
-            plumbDisplayAngleTv.text = angle
             touchLineAngleDisplayTv.text = angle
         }
         homeViewModel.plumbDisplayAngle.observe(viewLifecycleOwner) { angle ->
@@ -157,10 +151,21 @@ class HomeFragment : BaseFragment(), View.OnTouchListener {
             when(it) {
                 HomeViewModel.HoldingMode.HOLDING -> showHolding()
                 HomeViewModel.HoldingMode.FREE -> hideHolding()
+                null -> { DoNothing }
             }
         }
         homeViewModel.calibrationAction.observe(viewLifecycleOwner) {
+            //TODO ask about text
             Toast.makeText(requireContext(), "Calibrated with ${it.round(1)}", Toast.LENGTH_SHORT).show()
+        }
+        homeViewModel.darkMode.observe(viewLifecycleOwner) { dark ->
+            if (dark) {
+                //TODO: handle dark mode
+                Toast.makeText(requireContext(), "Make dark mode", Toast.LENGTH_SHORT).show()
+            } else {
+                //TODO: handle light mode
+                Toast.makeText(requireContext(), "Make light mode", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -189,23 +194,23 @@ class HomeFragment : BaseFragment(), View.OnTouchListener {
     }
 
     private fun touchModeButtonsHandling() {
-        cameraBtn.isEnabled = true
-        touchBtn.isEnabled = false
-        plumbBtn.isEnabled = true
+        cameraBtn.disable()
+        touchBtn.enable()
+        plumbBtn.enable()
         hideCalibrationButtons()
     }
 
     private fun plumbModeButtonsHandling() {
-        cameraBtn.isEnabled = true
-        touchBtn.isEnabled = true
-        plumbBtn.isEnabled = false
+        cameraBtn.enable()
+        touchBtn.enable()
+        plumbBtn.disable()
         showCalibrationButtons()
     }
 
     private fun cameraModeButtonsHandling() {
-        cameraBtn.isEnabled = false
-        touchBtn.isEnabled = true
-        plumbBtn.isEnabled = true
+        cameraBtn.disable()
+        touchBtn.enable()
+        plumbBtn.enable()
         showCalibrationButtons()
     }
 

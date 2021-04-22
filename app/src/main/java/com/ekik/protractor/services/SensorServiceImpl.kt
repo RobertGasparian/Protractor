@@ -5,6 +5,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.util.Log
+import com.ekik.protractor.DoNothing
 
 class SensorServiceImpl(
     private val sensorManager: SensorManager,
@@ -19,7 +20,7 @@ class SensorServiceImpl(
         }
 
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-            //don't need for now
+            DoNothing
         }
     }
 
